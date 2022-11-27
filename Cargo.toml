@@ -1,9 +1,11 @@
 [package]
 name = "m5stickc-plus-test"
+repository = "https://github.com/tana/rust-m5stickc-plus-test"
 version = "0.1.0"
 authors = ["Satoshi Tanaka <overthere555@gmail.com>"]
 edition = "2021"
 resolver = "2"
+license = "MIT OR Apache-2.0"
 
 [profile.release]
 opt-level = "s"

@@ -4,6 +4,7 @@ use embedded_hal::delay::DelayUs;
 use mipidsi::{Builder, Orientation};
 use display_interface_spi::SPIInterface;
 use embedded_graphics::{prelude::*, pixelcolor::Rgb565, text::{Text, Alignment, Baseline, TextStyleBuilder}, mono_font::{ascii::FONT_10X20, MonoTextStyle}};
+use mpu6050::Mpu6886;
 
 mod axp192;
 
@@ -22,9 +23,14 @@ fn main() {
         scl_pullup_enabled: true
     };
     let i2c = I2cDriver::new(peripherals.i2c1, peripherals.pins.gpio21, peripherals.pins.gpio22, &i2c_config).unwrap();
+    let i2c_bus = shared_bus::BusManagerSimple::new(i2c);
+
+    // Configure MPU-6886 IMU
+    let mut imu = Mpu6886::new(i2c_bus.acquire_i2c());
+    imu.init(&mut delay).unwrap();
 
     // Configure power management IC (AXP192)
-    let mut pmic = axp192::Axp192::new(i2c);
+    let mut pmic = axp192::Axp192::new(i2c_bus.acquire_i2c());
     pmic.init().unwrap();
 
     // Init SPI and display
@@ -49,7 +55,6 @@ fn main() {
     let char_style = MonoTextStyle::new(&FONT_10X20, Rgb565::WHITE);
     let text_style = TextStyleBuilder::new().alignment(Alignment::Center).baseline(Baseline::Middle).build();
 
-    let mut count = 0;
     loop {
         display.clear(Rgb565::BLACK).unwrap();
 
@@ -59,14 +64,21 @@ fn main() {
             char_style, text_style
         ).draw(&mut display).unwrap();
 
+        let accel = imu.get_acc().unwrap();
+        let gyro = imu.get_gyro().unwrap();
+
         Text::with_text_style(
-            format!("count={}", count).as_str(),
+            format!("{:.2},{:.2},{:.2}", accel.x, accel.y, accel.z).as_str(),
             display.bounding_box().center() + Point::new(0, 10),
             char_style, text_style
         ).draw(&mut display).unwrap();
 
-        count += 1;
+        Text::with_text_style(
+            format!("{:.2},{:.2},{:.2}", gyro.x, gyro.y, gyro.z).as_str(),
+            display.bounding_box().center() + Point::new(0, 30),
+            char_style, text_style
+        ).draw(&mut display).unwrap();
 
-        delay.delay_ms(1000).unwrap();
+        delay.delay_ms(500).unwrap();
     }
 }
